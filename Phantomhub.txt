@@ -477,73 +477,59 @@ local function createInfoBox(title, desc, tab, isButton, linkToCopy)
     table.insert(options[tab], Container)
 end
 
--- ===== ANTI RAGDOLL OPTION =====
-local isAntiRagdoll = createOption("Anti Ragdoll", false, "Main", function(active)
-    local char = Player.Character
-    if not char then return end
-    
-    local root = char:FindFirstChild("HumanoidRootPart")
-    if not root then return end
-    
-    if active then
-        -- Destruir RagdollAttachments existentes
-        for _, child in pairs(root:GetChildren()) do
-            if child.Name == "RagdollAttachment" then
-                child:Destroy()
-            end
-        end
-        
-        -- Monitorar novos RagdollAttachments
-        root.ChildAdded:Connect(function(child)
-            if isAntiRagdoll() and child.Name == "RagdollAttachment" then
-                task.wait(0.05)
-                if child and child.Parent then
-                    child:Destroy()
-                end
-            end
-        end)
-    else
-        -- Quando desativar, nada precisa fazer
-    end
-end)
+-- ===== TELEPORT TO RESPAWN BUTTON =====
+local function createTeleportToRespawnButton()
+    local Container = Instance.new("Frame")
+    Container.Size = UDim2.new(0.95, 0, 0, 50)
+    Container.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+    Container.Visible = (activeTab == "Main")
+    Container.Parent = MainContent
+    Container.Name = "Teleport to Respawn"
+    Instance.new("UICorner", Container).CornerRadius = UDim.new(0, 10)
 
--- ===== PLAYER ESP OPTION =====
-local isPlayerESP = createOption("Player ESP (Red Aura)", false, "Main")
+    local ContainerStroke = Instance.new("UIStroke")
+    ContainerStroke.Color = Color3.fromRGB(30, 30, 30)
+    ContainerStroke.Thickness = 2
+    ContainerStroke.Parent = Container
 
-task.spawn(function()
-    while task.wait(1) do
-        if isPlayerESP() then
-            for _, p in pairs(game.Players:GetPlayers()) do
-                if p ~= Player then
-                    local char = p.Character
-                    if char then
-                        local highlight = char:FindFirstChild("PhantomESP")
-                        if not highlight then
-                            highlight = Instance.new("Highlight")
-                            highlight.Name = "PhantomESP"
-                            highlight.FillColor = Color3.fromRGB(255, 0, 0)
-                            highlight.OutlineColor = Color3.fromRGB(255, 0, 0)
-                            highlight.FillTransparency = 0.5
-                            highlight.Parent = char
-                        end
+    local Label = Instance.new("TextLabel")
+    Label.Size = UDim2.new(1, 0, 1, 0)
+    Label.Text = "Teleport to Respawn"
+    Label.TextColor3 = Color3.fromRGB(255, 255, 255)
+    Label.BackgroundTransparency = 1
+    Label.TextXAlignment = Enum.TextXAlignment.Center
+    Label.TextYAlignment = Enum.TextYAlignment.Center
+    Label.Font = Enum.Font.SourceSans
+    Label.TextSize = 16
+    Label.Parent = Container
+
+    local ClickBtn = Instance.new("TextButton")
+    ClickBtn.Size = UDim2.new(1, 0, 1, 0)
+    ClickBtn.BackgroundTransparency = 1
+    ClickBtn.Text = ""
+    ClickBtn.Parent = Container
+    ClickBtn.AutoButtonColor = false
+
+    local function teleportToRespawn()
+        if createDebounce("TeleportToRespawn", 0.1) then
+            pcall(function()
+                local RespawnPart = workspace:FindFirstChild("RespawnPart")
+                if RespawnPart then
+                    local char = Player.Character
+                    if char and char:FindFirstChild("HumanoidRootPart") then
+                        char.HumanoidRootPart.CFrame = RespawnPart.CFrame
                     end
                 end
-            end
-        else
-            for _, p in pairs(game.Players:GetPlayers()) do
-                if p ~= Player then
-                    local char = p.Character
-                    if char then
-                        local highlight = char:FindFirstChild("PhantomESP")
-                        if highlight then
-                            highlight:Destroy()
-                        end
-                    end
-                end
-            end
+            end)
         end
     end
-end)
+
+    ClickBtn.Activated:Connect(teleportToRespawn)
+
+    table.insert(options["Main"], Container)
+end
+
+createTeleportToRespawnButton()
 
 local isAutoRebirth = createOption("Auto Rebirth", false, "Main", function(active)
     if active then
@@ -670,7 +656,7 @@ local isAutoUpgradeBrainrots = createOption("Auto Upgrade Brainrots", false, "Ma
             local upgradeCooldown = {}
             
             while optionStates["Auto Upgrade Brainrots"] do
-                task.wait(0.15)
+                task.wait(0.2)
                 pcall(function()
                     local function getCash()
                         local stats = Player:FindFirstChild("leaderstats")
@@ -683,17 +669,9 @@ local isAutoUpgradeBrainrots = createOption("Auto Upgrade Brainrots", false, "Ma
                     
                     local function safeNumber(text)
                         if not text then return 0 end
-                        text = tostring(text)
-                        text = text:gsub("[^%d]", "")
+                        text = tostring(text):gsub("[^%d.]", "")
                         if text == "" then return 0 end
                         return tonumber(text) or 0
-                    end
-                    
-                    local function getUpgradeButton(slot)
-                        local up = slot:FindFirstChild("UpgradePart")
-                        if up then up = up:FindFirstChild("UpgradeSurfaceGui") end
-                        if up then up = up:FindFirstChild("TextButton", true) end
-                        return up
                     end
                     
                     for _, plot in ipairs(Plots:GetChildren()) do
@@ -702,21 +680,23 @@ local isAutoUpgradeBrainrots = createOption("Auto Upgrade Brainrots", false, "Ma
                             if PlotSlots then
                                 for _, slot in ipairs(PlotSlots:GetChildren()) do
                                     if slot:IsA("Model") then
-                                        local btn = getUpgradeButton(slot)
-                                        if btn then
-                                            local priceObj = btn:FindFirstChild("Price")
-                                            if priceObj then
-                                                local price = safeNumber(priceObj.Text)
-                                                local cash = getCash()
-                                                
-                                                if price > 0 and cash >= price then
-                                                    if not upgradeCooldown[slot] or tick() - upgradeCooldown[slot] >= 0.3 then
-                                                        upgradeCooldown[slot] = tick()
-                                                        
-                                                        pcall(function()
-                                                            btn:Activate()
-                                                            UpgradeRemote:FireServer(plot.Name, slot.Name)
-                                                        end)
+                                        local UpgradePart = slot:FindFirstChild("UpgradePart")
+                                        if UpgradePart then
+                                            local SurfaceGui = UpgradePart:FindFirstChild("UpgradeSurfaceGui")
+                                            if SurfaceGui then
+                                                local TextLabel = SurfaceGui:FindFirstChild("TextLabel", true)
+                                                if TextLabel and TextLabel.Text then
+                                                    local price = safeNumber(TextLabel.Text)
+                                                    local cash = getCash()
+                                                    
+                                                    if price > 0 and cash >= price then
+                                                        if not upgradeCooldown[slot] or tick() - upgradeCooldown[slot] >= 0.5 then
+                                                            upgradeCooldown[slot] = tick()
+                                                            
+                                                            pcall(function()
+                                                                UpgradeRemote:FireServer(plot.Name, slot.Name)
+                                                            end)
+                                                        end
                                                     end
                                                 end
                                             end
@@ -729,6 +709,44 @@ local isAutoUpgradeBrainrots = createOption("Auto Upgrade Brainrots", false, "Ma
                 end)
             end
         end)
+    end
+end)
+
+-- ===== PLAYER ESP (Red Aura) - Movido para o final da Main =====
+local isPlayerESP = createOption("Player ESP (Red Aura)", false, "Main")
+
+task.spawn(function()
+    while task.wait(1) do
+        if isPlayerESP() then
+            for _, p in pairs(game.Players:GetPlayers()) do
+                if p ~= Player then
+                    local char = p.Character
+                    if char then
+                        local highlight = char:FindFirstChild("PhantomESP")
+                        if not highlight then
+                            highlight = Instance.new("Highlight")
+                            highlight.Name = "PhantomESP"
+                            highlight.FillColor = Color3.fromRGB(255, 0, 0)
+                            highlight.OutlineColor = Color3.fromRGB(255, 0, 0)
+                            highlight.FillTransparency = 0.5
+                            highlight.Parent = char
+                        end
+                    end
+                end
+            end
+        else
+            for _, p in pairs(game.Players:GetPlayers()) do
+                if p ~= Player then
+                    local char = p.Character
+                    if char then
+                        local highlight = char:FindFirstChild("PhantomESP")
+                        if highlight then
+                            highlight:Destroy()
+                        end
+                    end
+                end
+            end
+        end
     end
 end)
 
@@ -979,238 +997,6 @@ end
 local isAutoCelestial = createFarmOption("Auto Celestial", "Celestial")
 local isAutoSecret = createFarmOption("Auto Secret", "Secret")
 local isAutoInfinity = createFarmOption("Auto Infinity", "Infinity")
-
-local indexInfoShown = false
-local indexMutationStates = {Normal = true, Gold = true, Diamond = true, Rainbow = true}
-
-local function createIndexOption()
-    createOptionState("Auto Index [Click]", false)
-    local currentActive = optionStates["Auto Index [Click]"]
-    
-    local Container = Instance.new("Frame")
-    Container.Size = UDim2.new(0.95, 0, 0, 50)
-    Container.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
-    Container.Visible = (activeTab == "Farm")
-    Container.Parent = MainContent
-    Container.Name = "Auto Index [Click]"
-    Instance.new("UICorner", Container).CornerRadius = UDim.new(0, 10)
-    
-    local ContainerStroke = Instance.new("UIStroke")
-    ContainerStroke.Color = Color3.fromRGB(30, 30, 30)
-    ContainerStroke.Thickness = 2
-    ContainerStroke.Parent = Container
-    
-    local Label = Instance.new("TextLabel")
-    Label.Size = UDim2.new(0.6, 0, 1, 0)
-    Label.Position = UDim2.new(0.05, 0, 0, 0)
-    Label.Text = "Auto Index [Click]"
-    Label.TextColor3 = Color3.fromRGB(255, 255, 255)
-    Label.BackgroundTransparency = 1
-    Label.TextXAlignment = Enum.TextXAlignment.Left
-    Label.Font = Enum.Font.SourceSans
-    Label.TextSize = 16
-    Label.Parent = Container
-    
-    local SwitchBG = Instance.new("TextButton")
-    SwitchBG.Size = UDim2.new(0, 45, 0, 24)
-    SwitchBG.Position = UDim2.new(1, -55, 0.5, -12)
-    SwitchBG.BackgroundColor3 = currentActive and Color3.fromRGB(150, 150, 150) or Color3.fromRGB(40, 40, 40)
-    SwitchBG.Text = ""
-    SwitchBG.Parent = Container
-    SwitchBG.AutoButtonColor = false
-    Instance.new("UICorner", SwitchBG).CornerRadius = UDim.new(1, 0)
-    
-    local Circle = Instance.new("Frame")
-    Circle.Size = UDim2.new(0, 18, 0, 18)
-    Circle.Position = currentActive and UDim2.new(1, -21, 0.5, -9) or UDim2.new(0, 3, 0.5, -9)
-    Circle.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-    Circle.Parent = SwitchBG
-    Instance.new("UICorner", Circle).CornerRadius = UDim.new(1, 0)
-    
-    local infoPanel = nil
-    
-    local function toggleInfo()
-        indexInfoShown = not indexInfoShown
-        
-        if indexInfoShown and not infoPanel then
-            infoPanel = Instance.new("Frame")
-            infoPanel.Size = UDim2.new(0.95, 0, 0, 130)
-            infoPanel.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
-            infoPanel.Parent = MainContent
-            Instance.new("UICorner", infoPanel).CornerRadius = UDim.new(0, 10)
-            
-            local infoPanelStroke = Instance.new("UIStroke")
-            infoPanelStroke.Color = Color3.fromRGB(30, 30, 30)
-            infoPanelStroke.Thickness = 2
-            infoPanelStroke.Parent = infoPanel
-            
-            local mutations = {"Normal", "Gold", "Diamond", "Rainbow"}
-            
-            local mutLayout = Instance.new("UIListLayout")
-            mutLayout.SortOrder = Enum.SortOrder.LayoutOrder
-            mutLayout.Padding = UDim.new(0, 5)
-            mutLayout.Parent = infoPanel
-            
-            local mutPadding = Instance.new("UIPadding")
-            mutPadding.PaddingTop = UDim.new(0, 5)
-            mutPadding.PaddingLeft = UDim.new(0, 5)
-            mutPadding.PaddingRight = UDim.new(0, 5)
-            mutPadding.Parent = infoPanel
-            
-            for i, mutation in ipairs(mutations) do
-                local mutButton = Instance.new("TextButton")
-                mutButton.Size = UDim2.new(1, 0, 0, 25)
-                mutButton.BackgroundColor3 = indexMutationStates[mutation] and Color3.fromRGB(100, 100, 100) or Color3.fromRGB(50, 50, 50)
-                mutButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-                mutButton.Text = mutation
-                mutButton.Font = Enum.Font.SourceSans
-                mutButton.TextSize = 14
-                mutButton.Parent = infoPanel
-                mutButton.AutoButtonColor = false
-                Instance.new("UICorner", mutButton).CornerRadius = UDim.new(0, 6)
-                
-                mutButton.MouseButton1Click:Connect(function()
-                    indexMutationStates[mutation] = not indexMutationStates[mutation]
-                    mutButton.BackgroundColor3 = indexMutationStates[mutation] and Color3.fromRGB(100, 100, 100) or Color3.fromRGB(50, 50, 50)
-                end)
-            end
-            
-            table.insert(options["Farm"], infoPanel)
-            repositionElements("Farm")
-        elseif not indexInfoShown and infoPanel then
-            infoPanel:Destroy()
-            infoPanel = nil
-            table.remove(options["Farm"], #options["Farm"])
-            repositionElements("Farm")
-        end
-    end
-    
-    local function toggleSwitch()
-        if createDebounce("Auto Index [Click]", 0.05) then
-            optionStates["Auto Index [Click]"] = not optionStates["Auto Index [Click]"]
-            setOptionState("Auto Index [Click]", optionStates["Auto Index [Click]"])
-            
-            Circle:TweenPosition(optionStates["Auto Index [Click]"] and UDim2.new(1, -21, 0.5, -9) or UDim2.new(0, 3, 0.5, -9), "Out", "Quad", 0.2, true)
-            SwitchBG.BackgroundColor3 = optionStates["Auto Index [Click]"] and Color3.fromRGB(150, 150, 150) or Color3.fromRGB(40, 40, 40)
-            
-            task.wait(0.05)
-            task.spawn(function()
-                if optionStates["Auto Index [Click]"] then
-                    local Plots = workspace:WaitForChild("Plots")
-                    
-                    while optionStates["Auto Index [Click]"] do
-                        task.wait(0.5)
-                        pcall(function()
-                            for areaNum = 1, 7 do
-                                if not optionStates["Auto Index [Click]"] then break end
-                                
-                                local Area = workspace:FindFirstChild("Area")
-                                if not Area then continue end
-                                
-                                local AreaPiece = Area:FindFirstChild(tostring(areaNum))
-                                if not AreaPiece then continue end
-                                
-                                local char = Player.Character
-                                if not char then continue end
-                                
-                                char.HumanoidRootPart.CFrame = AreaPiece.CFrame
-                                task.wait(1)
-                                
-                                if not optionStates["Auto Index [Click]"] then break end
-                                
-                                local ClientBrainrotVisuals = workspace:FindFirstChild("ClientBrainrotVisuals")
-                                if not ClientBrainrotVisuals then continue end
-                                
-                                local targetMeshPart = nil
-                                local foundMutation = nil
-                                
-                                for _, model in pairs(ClientBrainrotVisuals:GetChildren()) do
-                                    if not optionStates["Auto Index [Click]"] then break end
-                                    
-                                    if model.Name == "ClientVisual" then
-                                        local gui = model:FindFirstChild("LocalStatsGui")
-                                        if gui then
-                                            local frame = gui:FindFirstChild("Frame")
-                                            if frame then
-                                                local charRarity = frame:FindFirstChild("CharRarity")
-                                                local charVariant = frame:FindFirstChild("CharVariant")
-                                                
-                                                if charRarity and charRarity:IsA("TextLabel") then
-                                                    local variant = "Normal"
-                                                    if charVariant and charVariant:IsA("TextLabel") and charVariant.Text ~= "" then
-                                                        variant = charVariant.Text
-                                                    end
-                                                    
-                                                    if indexMutationStates[variant] then
-                                                        local brainrotAttr = model:GetAttribute("Brainrot") or model.Name
-                                                        if brainrotAttr then
-                                                            local playerAllBrainrots = Player:FindFirstChild("AllBrainrots")
-                                                            if playerAllBrainrots then
-                                                                local brainrotKey = tostring(brainrotAttr):gsub(" ", "_"):gsub("-", "_")
-                                                                if playerAllBrainrots:GetAttribute(brainrotKey) ~= true then
-                                                                    for _, child in pairs(model:GetChildren()) do
-                                                                        if child:IsA("MeshPart") then
-                                                                            targetMeshPart = child
-                                                                            foundMutation = variant
-                                                                            break
-                                                                        end
-                                                                    end
-                                                                    if targetMeshPart then break end
-                                                                end
-                                                            end
-                                                        end
-                                                    end
-                                                end
-                                            end
-                                        end
-                                    end
-                                end
-                                
-                                if targetMeshPart then
-                                    local charCheck = Player.Character
-                                    if charCheck and charCheck:FindFirstChild("HumanoidRootPart") then
-                                        charCheck.HumanoidRootPart.CFrame = targetMeshPart.CFrame + Vector3.new(0, 3, 0)
-                                        task.wait(0.8)
-                                        
-                                        if not optionStates["Auto Index [Click]"] then break end
-                                        
-                                        local pickupPrompt = findPickupPrompt()
-                                        if pickupPrompt then
-                                            activatePickupPrompt(pickupPrompt)
-                                        end
-                                        
-                                        task.wait(0.03)
-                                        
-                                        local RespawnPart = workspace:FindFirstChild("RespawnPart")
-                                        if RespawnPart then
-                                            local charFinal = Player.Character
-                                            if charFinal and charFinal:FindFirstChild("HumanoidRootPart") then
-                                                charFinal.HumanoidRootPart.CFrame = RespawnPart.CFrame + Vector3.new(0, 3, 0)
-                                            end
-                                        end
-                                        
-                                        task.wait(1)
-                                    end
-                                end
-                            end
-                        end)
-                    end
-                end
-            end)
-        end
-    end
-    
-    SwitchBG.Activated:Connect(toggleSwitch)
-    Label.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            toggleInfo()
-        end
-    end)
-    
-    table.insert(options["Farm"], Container)
-end
-
-createIndexOption()
 
 local isInfiniteJump = createOption("Infinite Jump", false, "Config")
 
