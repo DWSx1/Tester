@@ -499,8 +499,8 @@ local function createTeleportToRespawnButton()
     Label.BackgroundTransparency = 1
     Label.TextXAlignment = Enum.TextXAlignment.Center
     Label.TextYAlignment = Enum.TextYAlignment.Center
-    Label.Font = Enum.Font.SourceSans
-    Label.TextSize = 16
+    Label.Font = Enum.Font.SourceSansBold
+    Label.TextSize = 18
     Label.Parent = Container
 
     local ClickBtn = Instance.new("TextButton")
@@ -648,6 +648,7 @@ local isAutoCollectMoney = createOption("Auto Collect Money", false, "Main", fun
     end
 end)
 
+-- ===== AUTO UPGRADE BRAINROTS - CORRIGIDO =====
 local isAutoUpgradeBrainrots = createOption("Auto Upgrade Brainrots", false, "Main", function(active)
     if active then
         task.spawn(function()
@@ -656,7 +657,7 @@ local isAutoUpgradeBrainrots = createOption("Auto Upgrade Brainrots", false, "Ma
             local upgradeCooldown = {}
             
             while optionStates["Auto Upgrade Brainrots"] do
-                task.wait(0.2)
+                task.wait(0.15)
                 pcall(function()
                     local function getCash()
                         local stats = Player:FindFirstChild("leaderstats")
@@ -685,7 +686,7 @@ local isAutoUpgradeBrainrots = createOption("Auto Upgrade Brainrots", false, "Ma
                                             local SurfaceGui = UpgradePart:FindFirstChild("UpgradeSurfaceGui")
                                             if SurfaceGui then
                                                 local TextLabel = SurfaceGui:FindFirstChild("TextLabel", true)
-                                                if TextLabel and TextLabel.Text then
+                                                if TextLabel and TextLabel.Text and TextLabel.Text ~= "" then
                                                     local price = safeNumber(TextLabel.Text)
                                                     local cash = getCash()
                                                     
@@ -712,7 +713,7 @@ local isAutoUpgradeBrainrots = createOption("Auto Upgrade Brainrots", false, "Ma
     end
 end)
 
--- ===== PLAYER ESP (Red Aura) - Movido para o final da Main =====
+-- ===== PLAYER ESP (Red Aura) =====
 local isPlayerESP = createOption("Player ESP (Red Aura)", false, "Main")
 
 task.spawn(function()
@@ -792,6 +793,7 @@ local isAutoSpeed = createOption("Auto Speed", false, "Buy", function(active)
     end
 end)
 
+-- ===== AUTO CARRY - CORRIGIDO =====
 local isAutoCarry = createOption("Auto Carry", false, "Buy", function(active)
     getgenv().AutoCarryEnabled = active
     if active then
@@ -800,10 +802,19 @@ local isAutoCarry = createOption("Auto Carry", false, "Buy", function(active)
                 task.wait(0.5)
                 pcall(function()
                     local PlayerStats = Player:WaitForChild("leaderstats")
-                    local Cash = PlayerStats:WaitForChild("Cash").Value
-                    local UpgradeCarryRemote = ReplicatedStorage:WaitForChild("RemoteFunctions"):WaitForChild("UpgradeCarry")
+                    local Cash = PlayerStats:WaitForChild("Cash")
+                    local CashValue = Cash and Cash.Value or 0
                     
-                    if getgenv().AutoCarryEnabled and Cash >= 1 then
+                    local CurrentCarry = tonumber(Player:GetAttribute("CurrentCarry")) or 1
+                    
+                    if CurrentCarry >= 6 then
+                        return
+                    end
+                    
+                    local price = math.pow(10, CurrentCarry - 1) * 1000000
+                    
+                    if CashValue >= price then
+                        local UpgradeCarryRemote = ReplicatedStorage:WaitForChild("RemoteFunctions"):WaitForChild("UpgradeCarry")
                         local success, result = pcall(function()
                             return UpgradeCarryRemote:InvokeServer()
                         end)
@@ -813,6 +824,8 @@ local isAutoCarry = createOption("Auto Carry", false, "Buy", function(active)
                         else
                             task.wait(1)
                         end
+                    else
+                        task.wait(1)
                     end
                 end)
             end
@@ -904,6 +917,7 @@ local function findTargetByRarity(rarity)
     return nil
 end
 
+-- ===== AUTO CELESTIAL - CORRIGIDO =====
 local function createFarmOption(name, rarity)
     return createOption(name, false, "Farm", function(active)
         if active then
