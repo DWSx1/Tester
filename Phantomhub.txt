@@ -477,6 +477,74 @@ local function createInfoBox(title, desc, tab, isButton, linkToCopy)
     table.insert(options[tab], Container)
 end
 
+-- ===== ANTI RAGDOLL OPTION =====
+local isAntiRagdoll = createOption("Anti Ragdoll", false, "Main", function(active)
+    local char = Player.Character
+    if not char then return end
+    
+    local root = char:FindFirstChild("HumanoidRootPart")
+    if not root then return end
+    
+    if active then
+        -- Destruir RagdollAttachments existentes
+        for _, child in pairs(root:GetChildren()) do
+            if child.Name == "RagdollAttachment" then
+                child:Destroy()
+            end
+        end
+        
+        -- Monitorar novos RagdollAttachments
+        root.ChildAdded:Connect(function(child)
+            if isAntiRagdoll() and child.Name == "RagdollAttachment" then
+                task.wait(0.05)
+                if child and child.Parent then
+                    child:Destroy()
+                end
+            end
+        end)
+    else
+        -- Quando desativar, nada precisa fazer
+    end
+end)
+
+-- ===== PLAYER ESP OPTION =====
+local isPlayerESP = createOption("Player ESP (Red Aura)", false, "Main")
+
+task.spawn(function()
+    while task.wait(1) do
+        if isPlayerESP() then
+            for _, p in pairs(game.Players:GetPlayers()) do
+                if p ~= Player then
+                    local char = p.Character
+                    if char then
+                        local highlight = char:FindFirstChild("PhantomESP")
+                        if not highlight then
+                            highlight = Instance.new("Highlight")
+                            highlight.Name = "PhantomESP"
+                            highlight.FillColor = Color3.fromRGB(255, 0, 0)
+                            highlight.OutlineColor = Color3.fromRGB(255, 0, 0)
+                            highlight.FillTransparency = 0.5
+                            highlight.Parent = char
+                        end
+                    end
+                end
+            end
+        else
+            for _, p in pairs(game.Players:GetPlayers()) do
+                if p ~= Player then
+                    local char = p.Character
+                    if char then
+                        local highlight = char:FindFirstChild("PhantomESP")
+                        if highlight then
+                            highlight:Destroy()
+                        end
+                    end
+                end
+            end
+        end
+    end
+end)
+
 local isAutoRebirth = createOption("Auto Rebirth", false, "Main", function(active)
     if active then
         task.spawn(function()
@@ -759,7 +827,7 @@ end
 local function activatePickupPrompt(prompt)
     if not prompt or not prompt.Parent then return false end
     
-    for i = 1, 3 do
+    for i = 1, 8 do
         pcall(function()
             if type(fireproximityprompt) == "function" then
                 fireproximityprompt(prompt, 0)
@@ -774,7 +842,7 @@ local function activatePickupPrompt(prompt)
             end
         end)
         
-        task.wait(0.015)
+        task.wait(0.02)
     end
     
     return true
@@ -966,7 +1034,7 @@ local function createIndexOption()
         
         if indexInfoShown and not infoPanel then
             infoPanel = Instance.new("Frame")
-            infoPanel.Size = UDim2.new(0.95, 0, 0, 120)
+            infoPanel.Size = UDim2.new(0.95, 0, 0, 130)
             infoPanel.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
             infoPanel.Parent = MainContent
             Instance.new("UICorner", infoPanel).CornerRadius = UDim.new(0, 10)
@@ -978,10 +1046,20 @@ local function createIndexOption()
             
             local mutations = {"Normal", "Gold", "Diamond", "Rainbow"}
             
+            local mutLayout = Instance.new("UIListLayout")
+            mutLayout.SortOrder = Enum.SortOrder.LayoutOrder
+            mutLayout.Padding = UDim.new(0, 5)
+            mutLayout.Parent = infoPanel
+            
+            local mutPadding = Instance.new("UIPadding")
+            mutPadding.PaddingTop = UDim.new(0, 5)
+            mutPadding.PaddingLeft = UDim.new(0, 5)
+            mutPadding.PaddingRight = UDim.new(0, 5)
+            mutPadding.Parent = infoPanel
+            
             for i, mutation in ipairs(mutations) do
                 local mutButton = Instance.new("TextButton")
-                mutButton.Size = UDim2.new(0.4, 0, 0, 25)
-                mutButton.Position = UDim2.new(0.05 + ((i-1) % 2) * 0.5, 0, 0.05 + math.floor((i-1) / 2) * 0.45, 0)
+                mutButton.Size = UDim2.new(1, 0, 0, 25)
                 mutButton.BackgroundColor3 = indexMutationStates[mutation] and Color3.fromRGB(100, 100, 100) or Color3.fromRGB(50, 50, 50)
                 mutButton.TextColor3 = Color3.fromRGB(255, 255, 255)
                 mutButton.Text = mutation
@@ -996,9 +1074,14 @@ local function createIndexOption()
                     mutButton.BackgroundColor3 = indexMutationStates[mutation] and Color3.fromRGB(100, 100, 100) or Color3.fromRGB(50, 50, 50)
                 end)
             end
+            
+            table.insert(options["Farm"], infoPanel)
+            repositionElements("Farm")
         elseif not indexInfoShown and infoPanel then
             infoPanel:Destroy()
             infoPanel = nil
+            table.remove(options["Farm"], #options["Farm"])
+            repositionElements("Farm")
         end
     end
     
@@ -1093,24 +1176,7 @@ local function createIndexOption()
                                         
                                         local pickupPrompt = findPickupPrompt()
                                         if pickupPrompt then
-                                            for clickAttempt = 1, 15 do
-                                                if not optionStates["Auto Index [Click]"] then break end
-                                                
-                                                if type(fireproximityprompt) == "function" then
-                                                    pcall(function()
-                                                        fireproximityprompt(pickupPrompt)
-                                                    end)
-                                                else
-                                                    activatePickupPrompt(pickupPrompt)
-                                                end
-                                                
-                                                task.wait(0.12)
-                                                
-                                                if not findPickupPrompt() then
-                                                    task.wait(0.15)
-                                                    break
-                                                end
-                                            end
+                                            activatePickupPrompt(pickupPrompt)
                                         end
                                         
                                         task.wait(0.03)
